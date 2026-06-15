@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Footer from "@/components/Footer";
 
 function LoginForm() {
   const router = useRouter();
@@ -94,7 +95,8 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[var(--background)] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[var(--background)] flex flex-col">
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
@@ -118,6 +120,8 @@ export default function LoginPage() {
           <LoginForm />
         </Suspense>
       </div>
+      </div>
+      <Footer />
     </div>
   );
 }
