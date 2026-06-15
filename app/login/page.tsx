@@ -4,8 +4,6 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Footer from "@/components/Footer";
 
-const siteName = process.env.NEXT_PUBLIC_GUNSAFE_SITE_NAME || "";
-
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -109,11 +107,7 @@ export default function LoginPage() {
             </svg>
             <span className="text-3xl font-semibold tracking-tighter">GunSafe</span>
           </div>
-          {siteName ? (
-            <p className="text-slate-300 text-sm font-medium">{siteName}</p>
-          ) : (
-            <p className="text-slate-400 text-sm">Detention Center Locker Log</p>
-          )}
+          <p className="text-slate-400 text-sm">Detention Center Locker Log</p>
         </div>
 
         <Suspense

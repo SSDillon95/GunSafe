@@ -28,17 +28,3 @@ Vercel cannot store data in local files. Connect a Postgres database:
 4. Click **Redeploy** (Deployments → ⋯ → Redeploy)
 
 Vercel will inject `POSTGRES_URL` automatically. After redeploying, enroll and locker setup will work.
-
-## Separate deployments per facility
-
-Each company or facility should use its own Vercel project and Neon database so records stay independent.
-
-Set these environment variables on each deployment:
-
-| Variable | Purpose |
-| --- | --- |
-| `GUNSAFE_SITE_PASSWORD` | Site gate password entered before sign-in |
-| `GUNSAFE_SITE_NAME` | Facility name shown in the browser title |
-| `NEXT_PUBLIC_GUNSAFE_SITE_NAME` | Facility name shown on the site-access, login, and app screens |
-
-Users must pass the site password first, then sign in with their GunSafe username.
