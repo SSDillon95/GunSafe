@@ -5,6 +5,7 @@ export interface Officer {
   last_name: string;
   department: string | null;
   enrolled_at: string;
+  archived: boolean;
 }
 
 export interface Locker {
@@ -12,6 +13,7 @@ export interface Locker {
   locker_number: string;
   location: string | null;
   created_at: string;
+  archived: boolean;
 }
 
 export interface CheckEvent {

@@ -64,6 +64,8 @@ async function initSchema(): Promise<void> {
     await sql`CREATE INDEX IF NOT EXISTS idx_check_events_officer ON check_events(officer_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_check_events_locker ON check_events(locker_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_check_events_recorded ON check_events(recorded_at)`;
+    await sql`ALTER TABLE officers ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false`;
+    await sql`ALTER TABLE lockers ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false`;
     return;
   }
 
@@ -112,6 +114,18 @@ async function initSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_check_events_locker ON check_events(locker_id);
     CREATE INDEX IF NOT EXISTS idx_check_events_recorded ON check_events(recorded_at);
   `);
+  const officerCols = db.pragma("table_info(officers)") as { name: string }[];
+  if (!officerCols.some((c) => c.name === "archived")) {
+    db.exec(
+      "ALTER TABLE officers ADD COLUMN archived INTEGER NOT NULL DEFAULT 0"
+    );
+  }
+  const lockerCols = db.pragma("table_info(lockers)") as { name: string }[];
+  if (!lockerCols.some((c) => c.name === "archived")) {
+    db.exec(
+      "ALTER TABLE lockers ADD COLUMN archived INTEGER NOT NULL DEFAULT 0"
+    );
+  }
   db.close();
 }
 
@@ -150,6 +164,7 @@ function mapOfficer(row: Record<string, unknown>): Officer {
     last_name: String(row.last_name),
     department: row.department ? String(row.department) : null,
     enrolled_at: formatTimestamp(row.enrolled_at),
+    archived: Boolean(row.archived),
   };
 }
 
@@ -159,6 +174,7 @@ function mapLocker(row: Record<string, unknown>): Locker {
     locker_number: String(row.locker_number),
     location: row.location ? String(row.location) : null,
     created_at: formatTimestamp(row.created_at),
+    archived: Boolean(row.archived),
   };
 }
 
@@ -192,9 +208,9 @@ export async function listOfficers(): Promise<Officer[]> {
   if (usePostgres) {
     const sql = await getPostgresSql();
     const rows = await sql`
-      SELECT id, badge_number, first_name, last_name, department, enrolled_at
+      SELECT id, badge_number, first_name, last_name, department, enrolled_at, archived
       FROM officers
-      ORDER BY last_name, first_name
+      ORDER BY archived, last_name, first_name
     `;
     return rows.map((row) => mapOfficer(row as Record<string, unknown>));
   }
@@ -203,9 +219,9 @@ export async function listOfficers(): Promise<Officer[]> {
   try {
     const rows = db
       .prepare(
-        `SELECT id, badge_number, first_name, last_name, department, enrolled_at
+        `SELECT id, badge_number, first_name, last_name, department, enrolled_at, archived
          FROM officers
-         ORDER BY last_name, first_name`
+         ORDER BY archived, last_name, first_name`
       )
       .all();
     return rows.map((row) => mapOfficer(row as Record<string, unknown>));
@@ -234,16 +250,21 @@ export async function enrollOfficer(data: {
   if (usePostgres) {
     const sql = await getPostgresSql();
     const existing = await sql`
-      SELECT id FROM officers WHERE badge_number = ${badge}
+      SELECT id, archived FROM officers WHERE badge_number = ${badge}
     `;
-    if (existing.length > 0) {
+    if (existing.length > 0 && !existing[0].archived) {
       throw new Error(`Officer with badge ${badge} is already enrolled.`);
+    }
+    if (existing.length > 0 && existing[0].archived) {
+      throw new Error(
+        `Officer with badge ${badge} is archived. Activate them instead of enrolling again.`
+      );
     }
 
     const inserted = await sql`
       INSERT INTO officers (badge_number, first_name, last_name, department)
       VALUES (${badge}, ${first}, ${last}, ${department})
-      RETURNING id, badge_number, first_name, last_name, department, enrolled_at
+      RETURNING id, badge_number, first_name, last_name, department, enrolled_at, archived
     `;
     return mapOfficer(inserted[0] as Record<string, unknown>);
   }
@@ -251,10 +272,15 @@ export async function enrollOfficer(data: {
   const db = await getSqliteDb();
   try {
     const existing = db
-      .prepare("SELECT id FROM officers WHERE badge_number = ?")
-      .get(badge);
-    if (existing) {
+      .prepare("SELECT id, archived FROM officers WHERE badge_number = ?")
+      .get(badge) as { id: number; archived: number } | undefined;
+    if (existing && !existing.archived) {
       throw new Error(`Officer with badge ${badge} is already enrolled.`);
+    }
+    if (existing?.archived) {
+      throw new Error(
+        `Officer with badge ${badge} is archived. Activate them instead of enrolling again.`
+      );
     }
 
     const result = db
@@ -266,7 +292,7 @@ export async function enrollOfficer(data: {
 
     const row = db
       .prepare(
-        `SELECT id, badge_number, first_name, last_name, department, enrolled_at
+        `SELECT id, badge_number, first_name, last_name, department, enrolled_at, archived
          FROM officers WHERE id = ?`
       )
       .get(result.lastInsertRowid);
@@ -282,9 +308,9 @@ export async function listLockers(): Promise<Locker[]> {
   if (usePostgres) {
     const sql = await getPostgresSql();
     const rows = await sql`
-      SELECT id, locker_number, location, created_at
+      SELECT id, locker_number, location, created_at, archived
       FROM lockers
-      ORDER BY locker_number
+      ORDER BY archived, locker_number
     `;
     return rows.map((row) => mapLocker(row as Record<string, unknown>));
   }
@@ -293,9 +319,9 @@ export async function listLockers(): Promise<Locker[]> {
   try {
     const rows = db
       .prepare(
-        `SELECT id, locker_number, location, created_at
+        `SELECT id, locker_number, location, created_at, archived
          FROM lockers
-         ORDER BY CAST(locker_number AS INTEGER), locker_number`
+         ORDER BY archived, CAST(locker_number AS INTEGER), locker_number`
       )
       .all();
     return rows.map((row) => mapLocker(row as Record<string, unknown>));
@@ -320,16 +346,21 @@ export async function addLocker(data: {
   if (usePostgres) {
     const sql = await getPostgresSql();
     const existing = await sql`
-      SELECT id FROM lockers WHERE locker_number = ${number}
+      SELECT id, archived FROM lockers WHERE locker_number = ${number}
     `;
-    if (existing.length > 0) {
+    if (existing.length > 0 && !existing[0].archived) {
       throw new Error(`Locker ${number} already exists.`);
+    }
+    if (existing.length > 0 && existing[0].archived) {
+      throw new Error(
+        `Locker ${number} is archived. Activate it instead of adding again.`
+      );
     }
 
     const inserted = await sql`
       INSERT INTO lockers (locker_number, location)
       VALUES (${number}, ${location})
-      RETURNING id, locker_number, location, created_at
+      RETURNING id, locker_number, location, created_at, archived
     `;
     return mapLocker(inserted[0] as Record<string, unknown>);
   }
@@ -337,10 +368,15 @@ export async function addLocker(data: {
   const db = await getSqliteDb();
   try {
     const existing = db
-      .prepare("SELECT id FROM lockers WHERE locker_number = ?")
-      .get(number);
-    if (existing) {
+      .prepare("SELECT id, archived FROM lockers WHERE locker_number = ?")
+      .get(number) as { id: number; archived: number } | undefined;
+    if (existing && !existing.archived) {
       throw new Error(`Locker ${number} already exists.`);
+    }
+    if (existing?.archived) {
+      throw new Error(
+        `Locker ${number} is archived. Activate it instead of adding again.`
+      );
     }
 
     const result = db
@@ -349,7 +385,7 @@ export async function addLocker(data: {
 
     const row = db
       .prepare(
-        `SELECT id, locker_number, location, created_at FROM lockers WHERE id = ?`
+        `SELECT id, locker_number, location, created_at, archived FROM lockers WHERE id = ?`
       )
       .get(result.lastInsertRowid);
     return mapLocker(row as Record<string, unknown>);
@@ -433,12 +469,16 @@ export async function recordCheckIn(
 
   if (usePostgres) {
     const sql = await getPostgresSql();
-    const officer = await sql`SELECT id FROM officers WHERE id = ${officerId}`;
-    const locker = await sql`SELECT id FROM lockers WHERE id = ${lockerId}`;
-    if (officer.length === 0) throw new Error("Officer not found.");
-    if (locker.length === 0) throw new Error("Locker not found.");
+    const officer = await sql`
+      SELECT id FROM officers WHERE id = ${officerId} AND archived = false
+    `;
+    const locker = await sql`
+      SELECT id FROM lockers WHERE id = ${lockerId} AND archived = false
+    `;
+    if (officer.length === 0) throw new Error("Officer not found or is archived.");
+    if (locker.length === 0) throw new Error("Locker not found or is archived.");
     if ((await getSessionStatus(officerId, lockerId)) === "checked_in") {
-      throw new Error("This officer is already checked in to this locker.");
+      throw new Error("This officer is already logged in to this locker.");
     }
 
     const inserted = await sql`
@@ -452,15 +492,15 @@ export async function recordCheckIn(
   const db = await getSqliteDb();
   try {
     const officer = db
-      .prepare("SELECT id FROM officers WHERE id = ?")
+      .prepare("SELECT id FROM officers WHERE id = ? AND archived = 0")
       .get(officerId);
     const locker = db
-      .prepare("SELECT id FROM lockers WHERE id = ?")
+      .prepare("SELECT id FROM lockers WHERE id = ? AND archived = 0")
       .get(lockerId);
-    if (!officer) throw new Error("Officer not found.");
-    if (!locker) throw new Error("Locker not found.");
+    if (!officer) throw new Error("Officer not found or is archived.");
+    if (!locker) throw new Error("Locker not found or is archived.");
     if ((await getSessionStatus(officerId, lockerId)) === "checked_in") {
-      throw new Error("This officer is already checked in to this locker.");
+      throw new Error("This officer is already logged in to this locker.");
     }
 
     const result = db
@@ -618,6 +658,93 @@ export async function listActiveSessions(): Promise<ActiveSession[]> {
       )
       .all();
     return rows.map((row) => mapActiveSession(row as Record<string, unknown>));
+  } finally {
+    db.close();
+  }
+}
+
+async function isOfficerLoggedIn(officerId: number): Promise<boolean> {
+  const sessions = await listActiveSessions();
+  return sessions.some((s) => s.officer_id === officerId);
+}
+
+async function isLockerInUse(lockerId: number): Promise<boolean> {
+  const sessions = await listActiveSessions();
+  return sessions.some((s) => s.locker_id === lockerId);
+}
+
+export async function setOfficerArchived(
+  id: number,
+  archived: boolean
+): Promise<Officer> {
+  await ensureSchema();
+
+  if (archived && (await isOfficerLoggedIn(id))) {
+    throw new Error("Cannot archive an officer who is currently logged in.");
+  }
+
+  if (usePostgres) {
+    const sql = await getPostgresSql();
+    const rows = await sql`
+      UPDATE officers SET archived = ${archived}
+      WHERE id = ${id}
+      RETURNING id, badge_number, first_name, last_name, department, enrolled_at, archived
+    `;
+    if (rows.length === 0) throw new Error("Officer not found.");
+    return mapOfficer(rows[0] as Record<string, unknown>);
+  }
+
+  const db = await getSqliteDb();
+  try {
+    const result = db
+      .prepare("UPDATE officers SET archived = ? WHERE id = ?")
+      .run(archived ? 1 : 0, id);
+    if (result.changes === 0) throw new Error("Officer not found.");
+    const row = db
+      .prepare(
+        `SELECT id, badge_number, first_name, last_name, department, enrolled_at, archived
+         FROM officers WHERE id = ?`
+      )
+      .get(id);
+    return mapOfficer(row as Record<string, unknown>);
+  } finally {
+    db.close();
+  }
+}
+
+export async function setLockerArchived(
+  id: number,
+  archived: boolean
+): Promise<Locker> {
+  await ensureSchema();
+
+  if (archived && (await isLockerInUse(id))) {
+    throw new Error("Cannot archive a locker that is currently in use.");
+  }
+
+  if (usePostgres) {
+    const sql = await getPostgresSql();
+    const rows = await sql`
+      UPDATE lockers SET archived = ${archived}
+      WHERE id = ${id}
+      RETURNING id, locker_number, location, created_at, archived
+    `;
+    if (rows.length === 0) throw new Error("Locker not found.");
+    return mapLocker(rows[0] as Record<string, unknown>);
+  }
+
+  const db = await getSqliteDb();
+  try {
+    const result = db
+      .prepare("UPDATE lockers SET archived = ? WHERE id = ?")
+      .run(archived ? 1 : 0, id);
+    if (result.changes === 0) throw new Error("Locker not found.");
+    const row = db
+      .prepare(
+        `SELECT id, locker_number, location, created_at, archived FROM lockers WHERE id = ?`
+      )
+      .get(id);
+    return mapLocker(row as Record<string, unknown>);
   } finally {
     db.close();
   }

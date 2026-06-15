@@ -32,6 +32,7 @@ export default function GunSafeApp() {
   const [selectedLockerId, setSelectedLockerId] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [loggingOutKey, setLoggingOutKey] = useState<string | null>(null);
+  const [archivingKey, setArchivingKey] = useState<string | null>(null);
 
   const [enrollForm, setEnrollForm] = useState({
     badge_number: "",
@@ -115,39 +116,25 @@ export default function GunSafeApp() {
     }
   };
 
-  const handleLogOut = async (officerId?: number, lockerId?: number) => {
-    const oId = officerId ?? Number(selectedOfficerId);
-    const lId = lockerId ?? Number(selectedLockerId);
-
-    if (!oId || !lId) {
-      showMessage("error", "Select an officer and a locker first.");
-      return;
-    }
-
-    const rowKey = `${oId}-${lId}`;
-    const fromList = officerId !== undefined && lockerId !== undefined;
-
-    if (fromList) {
-      setLoggingOutKey(rowKey);
-    } else {
-      setActionLoading(true);
-    }
+  const handleLogOut = async (officerId: number, lockerId: number) => {
+    const rowKey = `${officerId}-${lockerId}`;
+    setLoggingOutKey(rowKey);
 
     try {
       const res = await fetch("/api/check-out", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          officer_id: oId,
-          locker_id: lId,
+          officer_id: officerId,
+          locker_id: lockerId,
         }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       showMessage("success", "Log out recorded.");
       if (
-        selectedOfficerId === String(oId) &&
-        selectedLockerId === String(lId)
+        selectedOfficerId === String(officerId) &&
+        selectedLockerId === String(lockerId)
       ) {
         setSelectedOfficerId("");
         setSelectedLockerId("");
@@ -156,11 +143,51 @@ export default function GunSafeApp() {
     } catch (err) {
       showMessage("error", (err as Error).message);
     } finally {
-      if (fromList) {
-        setLoggingOutKey(null);
-      } else {
-        setActionLoading(false);
-      }
+      setLoggingOutKey(null);
+    }
+  };
+
+  const handleOfficerArchive = async (id: number, archived: boolean) => {
+    setArchivingKey(`officer-${id}`);
+    try {
+      const res = await fetch("/api/officers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, archived }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      showMessage(
+        "success",
+        archived ? "Officer archived." : "Officer activated."
+      );
+      await loadData();
+    } catch (err) {
+      showMessage("error", (err as Error).message);
+    } finally {
+      setArchivingKey(null);
+    }
+  };
+
+  const handleLockerArchive = async (id: number, archived: boolean) => {
+    setArchivingKey(`locker-${id}`);
+    try {
+      const res = await fetch("/api/lockers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, archived }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      showMessage(
+        "success",
+        archived ? "Locker archived." : "Locker activated."
+      );
+      await loadData();
+    } catch (err) {
+      showMessage("error", (err as Error).message);
+    } finally {
+      setArchivingKey(null);
     }
   };
 
@@ -207,8 +234,13 @@ export default function GunSafeApp() {
   };
 
   const status = selectedPairStatus();
+  const activeOfficers = officers.filter((o) => !o.archived);
+  const archivedOfficers = officers.filter((o) => o.archived);
+  const activeLockers = lockers.filter((l) => !l.archived);
+  const archivedLockers = lockers.filter((l) => l.archived);
+
   const tabs: { id: Tab; label: string }[] = [
-    { id: "check", label: "Log In / Out" },
+    { id: "check", label: "Log In" },
     { id: "enroll", label: "Enroll Officer" },
     { id: "lockers", label: "Locker Setup" },
     { id: "log", label: "Activity Log" },
@@ -281,9 +313,10 @@ export default function GunSafeApp() {
         ) : tab === "check" ? (
           <div className="space-y-6">
             <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8">
-              <h2 className="text-2xl font-semibold mb-1">Locker Log In / Out</h2>
+              <h2 className="text-2xl font-semibold mb-1">Locker Log In</h2>
               <p className="text-slate-400 text-sm mb-8">
-                Select an officer and locker, then record log in or log out.
+                Select an officer and locker, then record log in. Use the list
+                below to log out.
               </p>
 
               <div className="grid sm:grid-cols-2 gap-6 mb-8">
@@ -297,13 +330,13 @@ export default function GunSafeApp() {
                     className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-4 text-white"
                   >
                     <option value="">Select officer...</option>
-                    {officers.map((o) => (
+                    {activeOfficers.map((o) => (
                       <option key={o.id} value={o.id}>
                         {o.last_name}, {o.first_name} — Badge {o.badge_number}
                       </option>
                     ))}
                   </select>
-                  {officers.length === 0 && (
+                  {activeOfficers.length === 0 && (
                     <p className="text-xs text-amber-400 mt-2">
                       No officers enrolled. Go to Enroll Officer first.
                     </p>
@@ -320,14 +353,14 @@ export default function GunSafeApp() {
                     className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-4 text-white"
                   >
                     <option value="">Select locker...</option>
-                    {lockers.map((l) => (
+                    {activeLockers.map((l) => (
                       <option key={l.id} value={l.id}>
                         Locker {l.locker_number}
                         {l.location ? ` — ${l.location}` : ""}
                       </option>
                     ))}
                   </select>
-                  {lockers.length === 0 && (
+                  {activeLockers.length === 0 && (
                     <p className="text-xs text-amber-400 mt-2">
                       No lockers configured. Go to Locker Setup first.
                     </p>
@@ -350,24 +383,14 @@ export default function GunSafeApp() {
                 </div>
               )}
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={handleLogIn}
-                  disabled={actionLoading || status === "checked_in"}
-                  className="py-5 rounded-2xl bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-lg transition"
-                >
-                  Log In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleLogOut()}
-                  disabled={actionLoading || status !== "checked_in"}
-                  className="py-5 rounded-2xl bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-lg transition"
-                >
-                  Log Out
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleLogIn}
+                disabled={actionLoading || status === "checked_in"}
+                className="w-full py-5 rounded-2xl bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-lg transition"
+              >
+                Log In
+              </button>
             </section>
 
             {active.length > 0 && (
@@ -427,7 +450,8 @@ export default function GunSafeApp() {
           <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8 max-w-xl">
             <h2 className="text-2xl font-semibold mb-1">Enroll Officer</h2>
             <p className="text-slate-400 text-sm mb-8">
-              Add a new officer to the system. Enrolled officers cannot be removed.
+              Add a new officer to the system. Archive inactive officers or
+              activate them again later.
             </p>
             <form onSubmit={handleEnroll} className="space-y-5">
               <div>
@@ -494,23 +518,66 @@ export default function GunSafeApp() {
               </button>
             </form>
 
-            {officers.length > 0 && (
+            {activeOfficers.length > 0 && (
               <div className="mt-10 pt-8 border-t border-[var(--border)]">
                 <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest mb-4">
-                  Enrolled Officers ({officers.length})
+                  Active Officers ({activeOfficers.length})
                 </h3>
                 <ul className="space-y-2 text-sm">
-                  {officers.map((o) => (
+                  {activeOfficers.map((o) => (
                     <li
                       key={o.id}
-                      className="flex justify-between py-2 border-b border-[var(--border)] last:border-0"
+                      className="flex items-center justify-between gap-3 py-2 border-b border-[var(--border)] last:border-0"
                     >
                       <span>
                         {o.last_name}, {o.first_name}
+                        <span className="font-mono text-slate-400 ml-2">
+                          Badge {o.badge_number}
+                        </span>
                       </span>
-                      <span className="font-mono text-slate-400">
-                        Badge {o.badge_number}
+                      <button
+                        type="button"
+                        onClick={() => handleOfficerArchive(o.id, true)}
+                        disabled={archivingKey === `officer-${o.id}`}
+                        className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-medium transition whitespace-nowrap"
+                      >
+                        {archivingKey === `officer-${o.id}`
+                          ? "Archiving..."
+                          : "Archive"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {archivedOfficers.length > 0 && (
+              <div className="mt-8 pt-8 border-t border-[var(--border)]">
+                <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest mb-4">
+                  Archived Officers ({archivedOfficers.length})
+                </h3>
+                <ul className="space-y-2 text-sm">
+                  {archivedOfficers.map((o) => (
+                    <li
+                      key={o.id}
+                      className="flex items-center justify-between gap-3 py-2 border-b border-[var(--border)] last:border-0 opacity-70"
+                    >
+                      <span>
+                        {o.last_name}, {o.first_name}
+                        <span className="font-mono text-slate-400 ml-2">
+                          Badge {o.badge_number}
+                        </span>
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOfficerArchive(o.id, false)}
+                        disabled={archivingKey === `officer-${o.id}`}
+                        className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition whitespace-nowrap"
+                      >
+                        {archivingKey === `officer-${o.id}`
+                          ? "Activating..."
+                          : "Activate"}
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -522,7 +589,8 @@ export default function GunSafeApp() {
             <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8">
               <h2 className="text-2xl font-semibold mb-1">Locker Setup</h2>
               <p className="text-slate-400 text-sm mb-8">
-                Configure locker numbers for the detention center. Lockers cannot be removed.
+                Configure locker numbers for the detention center. Archive unused
+                lockers or activate them again later.
               </p>
               <form onSubmit={handleAddLocker} className="space-y-5">
                 <div>
@@ -562,27 +630,80 @@ export default function GunSafeApp() {
               </form>
             </section>
 
-            <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8">
-              <h3 className="text-lg font-semibold mb-4">
-                Configured Lockers ({lockers.length})
-              </h3>
-              {lockers.length === 0 ? (
-                <p className="text-slate-400 text-sm">No lockers configured yet.</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {lockers.map((l) => (
-                    <div
-                      key={l.id}
-                      className="rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4 text-center"
-                    >
-                      <div className="font-mono text-2xl font-bold text-blue-400">
-                        {l.locker_number}
+            <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8 space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">
+                  Active Lockers ({activeLockers.length})
+                </h3>
+                {activeLockers.length === 0 ? (
+                  <p className="text-slate-400 text-sm">No active lockers yet.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {activeLockers.map((l) => (
+                      <div
+                        key={l.id}
+                        className="rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4 flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="font-mono text-2xl font-bold text-blue-400">
+                            {l.locker_number}
+                          </div>
+                          {l.location && (
+                            <div className="text-xs text-slate-400 mt-1">
+                              {l.location}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleLockerArchive(l.id, true)}
+                          disabled={archivingKey === `locker-${l.id}`}
+                          className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-medium transition whitespace-nowrap"
+                        >
+                          {archivingKey === `locker-${l.id}`
+                            ? "Archiving..."
+                            : "Archive"}
+                        </button>
                       </div>
-                      {l.location && (
-                        <div className="text-xs text-slate-400 mt-1">{l.location}</div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {archivedLockers.length > 0 && (
+                <div className="pt-6 border-t border-[var(--border)]">
+                  <h3 className="text-lg font-semibold mb-4">
+                    Archived Lockers ({archivedLockers.length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {archivedLockers.map((l) => (
+                      <div
+                        key={l.id}
+                        className="rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4 flex items-center justify-between gap-3 opacity-70"
+                      >
+                        <div>
+                          <div className="font-mono text-2xl font-bold text-slate-500">
+                            {l.locker_number}
+                          </div>
+                          {l.location && (
+                            <div className="text-xs text-slate-500 mt-1">
+                              {l.location}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleLockerArchive(l.id, false)}
+                          disabled={archivingKey === `locker-${l.id}`}
+                          className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-medium transition whitespace-nowrap"
+                        >
+                          {archivingKey === `locker-${l.id}`
+                            ? "Activating..."
+                            : "Activate"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </section>
