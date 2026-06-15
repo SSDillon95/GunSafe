@@ -12,8 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteName = process.env.GUNSAFE_SITE_NAME || "Detention Center Locker Log";
+
 export const metadata: Metadata = {
-  title: "GunSafe | Detention Center Locker Log",
+  title: `GunSafe | ${siteName}`,
   description:
     "Record police officer locker log ins and log outs. All entries are permanent and cannot be deleted.",
 };

@@ -6,10 +6,9 @@ import Footer from "@/components/Footer";
 
 const siteName = process.env.NEXT_PUBLIC_GUNSAFE_SITE_NAME || "";
 
-function LoginForm() {
+function SiteAccessForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,19 +19,19 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/site-access", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ password }),
       });
       const json = await res.json();
 
       if (!json.success) {
-        setError(json.error || "Login failed.");
+        setError(json.error || "Invalid site password.");
         return;
       }
 
-      const from = searchParams.get("from") || "/";
+      const from = searchParams.get("from") || "/login";
       router.push(from);
       router.refresh();
     } catch {
@@ -47,7 +46,10 @@ function LoginForm() {
       onSubmit={handleSubmit}
       className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-8 space-y-5"
     >
-      <h1 className="text-xl font-semibold text-center">Sign In</h1>
+      <h1 className="text-xl font-semibold text-center">Site Access</h1>
+      <p className="text-sm text-slate-400 text-center leading-relaxed">
+        Enter the site password for this facility before signing in.
+      </p>
 
       {error && (
         <div className="rounded-xl px-4 py-3 text-sm border bg-red-500/10 border-red-500/30 text-red-400">
@@ -57,21 +59,7 @@ function LoginForm() {
 
       <div>
         <label className="block text-xs text-slate-400 uppercase tracking-widest mb-2">
-          Username
-        </label>
-        <input
-          required
-          autoComplete="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3"
-          placeholder="Enter username"
-        />
-      </div>
-
-      <div>
-        <label className="block text-xs text-slate-400 uppercase tracking-widest mb-2">
-          Password
+          Site Password
         </label>
         <input
           required
@@ -80,7 +68,7 @@ function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3"
-          placeholder="Enter password"
+          placeholder="Enter site password"
         />
       </div>
 
@@ -89,43 +77,43 @@ function LoginForm() {
         disabled={loading}
         className="w-full py-4 rounded-2xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white font-semibold transition"
       >
-        {loading ? "Signing in..." : "Sign In"}
+        {loading ? "Verifying..." : "Continue"}
       </button>
     </form>
   );
 }
 
-export default function LoginPage() {
+export default function SiteAccessPage() {
   return (
     <div className="min-h-screen bg-[var(--background)] flex flex-col">
       <div className="flex-1 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 mb-4">
-            <svg width="40" height="40" viewBox="0 0 36 36" aria-label="GunSafe logo">
-              <rect width="36" height="36" rx="8" fill="#141a24" stroke="#3b82f6" strokeWidth="1.5" />
-              <rect x="8" y="10" width="20" height="16" rx="2" fill="none" stroke="#3b82f6" strokeWidth="2" />
-              <circle cx="24" cy="18" r="2.5" fill="#60a5fa" />
-            </svg>
-            <span className="text-3xl font-semibold tracking-tighter">GunSafe</span>
-          </div>
-          {siteName ? (
-            <p className="text-slate-300 text-sm font-medium">{siteName}</p>
-          ) : (
-            <p className="text-slate-400 text-sm">Detention Center Locker Log</p>
-          )}
-        </div>
-
-        <Suspense
-          fallback={
-            <div className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-8 text-center text-slate-400">
-              Loading...
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-3 mb-4">
+              <svg width="40" height="40" viewBox="0 0 36 36" aria-label="GunSafe logo">
+                <rect width="36" height="36" rx="8" fill="#141a24" stroke="#3b82f6" strokeWidth="1.5" />
+                <rect x="8" y="10" width="20" height="16" rx="2" fill="none" stroke="#3b82f6" strokeWidth="2" />
+                <circle cx="24" cy="18" r="2.5" fill="#60a5fa" />
+              </svg>
+              <span className="text-3xl font-semibold tracking-tighter">GunSafe</span>
             </div>
-          }
-        >
-          <LoginForm />
-        </Suspense>
-      </div>
+            {siteName ? (
+              <p className="text-slate-300 text-sm font-medium">{siteName}</p>
+            ) : (
+              <p className="text-slate-400 text-sm">Detention Center Locker Log</p>
+            )}
+          </div>
+
+          <Suspense
+            fallback={
+              <div className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-8 text-center text-slate-400">
+                Loading...
+              </div>
+            }
+          >
+            <SiteAccessForm />
+          </Suspense>
+        </div>
       </div>
       <Footer />
     </div>

@@ -9,6 +9,8 @@ import type { ActiveSession, AppUser, CheckEvent, Locker, Officer } from "@/lib/
 type Tab = "check" | "enroll" | "lockers" | "log" | "users";
 type UserRole = "master" | "user";
 
+const siteName = process.env.NEXT_PUBLIC_GUNSAFE_SITE_NAME || "";
+
 function formatTime(iso: string) {
   const normalized = iso.includes("T") ? iso : iso.replace(" ", "T");
   return new Date(normalized).toLocaleString(undefined, {
@@ -352,7 +354,7 @@ export default function GunSafeApp() {
             <div>
               <div className="font-semibold text-xl sm:text-2xl tracking-tighter">GunSafe</div>
               <div className="text-[10px] text-blue-400 -mt-0.5 tracking-widest uppercase">
-                Detention Center Locker Log
+                {siteName || "Detention Center Locker Log"}
               </div>
             </div>
           </div>
