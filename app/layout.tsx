@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GunSafe | Detention Center Locker Check-In",
+  title: "GunSafe | Detention Center Locker Log",
   description:
-    "Record police officer locker check-ins and check-outs. All entries are permanent and cannot be deleted.",
+    "Record police officer locker log ins and log outs. All entries are permanent and cannot be deleted.",
 };
 
 export default function RootLayout({

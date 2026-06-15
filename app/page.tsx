@@ -31,6 +31,7 @@ export default function GunSafeApp() {
   const [selectedOfficerId, setSelectedOfficerId] = useState("");
   const [selectedLockerId, setSelectedLockerId] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [loggingOutKey, setLoggingOutKey] = useState<string | null>(null);
 
   const [enrollForm, setEnrollForm] = useState({
     badge_number: "",
@@ -88,7 +89,7 @@ export default function GunSafeApp() {
     return session ? "checked_in" : "checked_out";
   };
 
-  const handleCheckIn = async () => {
+  const handleLogIn = async () => {
     if (!selectedOfficerId || !selectedLockerId) {
       showMessage("error", "Select an officer and a locker first.");
       return;
@@ -105,7 +106,7 @@ export default function GunSafeApp() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      showMessage("success", "Check-in recorded.");
+      showMessage("success", "Log in recorded.");
       await loadData();
     } catch (err) {
       showMessage("error", (err as Error).message);
@@ -114,29 +115,52 @@ export default function GunSafeApp() {
     }
   };
 
-  const handleCheckOut = async () => {
-    if (!selectedOfficerId || !selectedLockerId) {
+  const handleLogOut = async (officerId?: number, lockerId?: number) => {
+    const oId = officerId ?? Number(selectedOfficerId);
+    const lId = lockerId ?? Number(selectedLockerId);
+
+    if (!oId || !lId) {
       showMessage("error", "Select an officer and a locker first.");
       return;
     }
-    setActionLoading(true);
+
+    const rowKey = `${oId}-${lId}`;
+    const fromList = officerId !== undefined && lockerId !== undefined;
+
+    if (fromList) {
+      setLoggingOutKey(rowKey);
+    } else {
+      setActionLoading(true);
+    }
+
     try {
       const res = await fetch("/api/check-out", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          officer_id: Number(selectedOfficerId),
-          locker_id: Number(selectedLockerId),
+          officer_id: oId,
+          locker_id: lId,
         }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      showMessage("success", "Check-out recorded.");
+      showMessage("success", "Log out recorded.");
+      if (
+        selectedOfficerId === String(oId) &&
+        selectedLockerId === String(lId)
+      ) {
+        setSelectedOfficerId("");
+        setSelectedLockerId("");
+      }
       await loadData();
     } catch (err) {
       showMessage("error", (err as Error).message);
     } finally {
-      setActionLoading(false);
+      if (fromList) {
+        setLoggingOutKey(null);
+      } else {
+        setActionLoading(false);
+      }
     }
   };
 
@@ -184,7 +208,7 @@ export default function GunSafeApp() {
 
   const status = selectedPairStatus();
   const tabs: { id: Tab; label: string }[] = [
-    { id: "check", label: "Check In / Out" },
+    { id: "check", label: "Log In / Out" },
     { id: "enroll", label: "Enroll Officer" },
     { id: "lockers", label: "Locker Setup" },
     { id: "log", label: "Activity Log" },
@@ -257,9 +281,9 @@ export default function GunSafeApp() {
         ) : tab === "check" ? (
           <div className="space-y-6">
             <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8">
-              <h2 className="text-2xl font-semibold mb-1">Locker Check In / Out</h2>
+              <h2 className="text-2xl font-semibold mb-1">Locker Log In / Out</h2>
               <p className="text-slate-400 text-sm mb-8">
-                Select an officer and locker, then record check-in or check-out.
+                Select an officer and locker, then record log in or log out.
               </p>
 
               <div className="grid sm:grid-cols-2 gap-6 mb-8">
@@ -321,27 +345,27 @@ export default function GunSafeApp() {
                 >
                   Status:{" "}
                   {status === "checked_in"
-                    ? "Currently checked in to this locker"
-                    : "Not checked in to this locker"}
+                    ? "Currently logged in to this locker"
+                    : "Not logged in to this locker"}
                 </div>
               )}
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={handleCheckIn}
+                  onClick={handleLogIn}
                   disabled={actionLoading || status === "checked_in"}
                   className="py-5 rounded-2xl bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-lg transition"
                 >
-                  Check In
+                  Log In
                 </button>
                 <button
                   type="button"
-                  onClick={handleCheckOut}
+                  onClick={() => handleLogOut()}
                   disabled={actionLoading || status !== "checked_in"}
                   className="py-5 rounded-2xl bg-red-500 hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-lg transition"
                 >
-                  Check Out
+                  Log Out
                 </button>
               </div>
             </section>
@@ -349,7 +373,7 @@ export default function GunSafeApp() {
             {active.length > 0 && (
               <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6">
                 <h3 className="text-lg font-semibold mb-4">
-                  Currently Checked In ({active.length})
+                  Currently Logged In ({active.length})
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -358,23 +382,41 @@ export default function GunSafeApp() {
                         <th className="pb-3 pr-4">Officer</th>
                         <th className="pb-3 pr-4">Badge</th>
                         <th className="pb-3 pr-4">Locker</th>
-                        <th className="pb-3">Checked In</th>
+                        <th className="pb-3 pr-4">Logged In</th>
+                        <th className="pb-3"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {active.map((s) => (
-                        <tr
-                          key={`${s.officer_id}-${s.locker_id}`}
-                          className="border-b border-[var(--border)] last:border-0"
-                        >
-                          <td className="py-3 pr-4">{s.officer_name}</td>
-                          <td className="py-3 pr-4 font-mono">{s.badge_number}</td>
-                          <td className="py-3 pr-4 font-mono">{s.locker_number}</td>
-                          <td className="py-3 text-slate-400">
-                            {formatTime(s.checked_in_at)}
-                          </td>
-                        </tr>
-                      ))}
+                      {active.map((s) => {
+                        const rowKey = `${s.officer_id}-${s.locker_id}`;
+                        const isLoggingOut = loggingOutKey === rowKey;
+
+                        return (
+                          <tr
+                            key={rowKey}
+                            className="border-b border-[var(--border)] last:border-0"
+                          >
+                            <td className="py-3 pr-4">{s.officer_name}</td>
+                            <td className="py-3 pr-4 font-mono">{s.badge_number}</td>
+                            <td className="py-3 pr-4 font-mono">{s.locker_number}</td>
+                            <td className="py-3 pr-4 text-slate-400">
+                              {formatTime(s.checked_in_at)}
+                            </td>
+                            <td className="py-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleLogOut(s.officer_id, s.locker_id)
+                                }
+                                disabled={isLoggingOut || actionLoading}
+                                className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-semibold transition whitespace-nowrap"
+                              >
+                                {isLoggingOut ? "Logging out..." : "Log Out"}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -549,7 +591,7 @@ export default function GunSafeApp() {
           <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8">
             <h2 className="text-2xl font-semibold mb-1">Activity Log</h2>
             <p className="text-slate-400 text-sm mb-6">
-              Permanent audit trail. All check-in and check-out records are kept forever and
+              Permanent audit trail. All log in and log out records are kept forever and
               cannot be deleted.
             </p>
 
@@ -584,7 +626,7 @@ export default function GunSafeApp() {
                                 : "bg-red-500/20 text-red-400"
                             }`}
                           >
-                            {e.event_type === "check_in" ? "Check In" : "Check Out"}
+                            {e.event_type === "check_in" ? "Log In" : "Log Out"}
                           </span>
                         </td>
                         <td className="py-3 pr-4">{e.officer_name}</td>
