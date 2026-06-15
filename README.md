@@ -18,13 +18,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Data is stored in `data/gunsafe.db`.
 
-## Deploy on Vercel
+## Deploy on Vercel (requires a database)
 
-Vercel cannot use local SQLite files. You must add a Postgres database:
+Vercel cannot store data in local files. Connect a Postgres database:
 
-1. Open your [GunSafe project on Vercel](https://vercel.com/dashboard)
-2. Go to **Storage** → **Create Database** → **Postgres**
-3. Connect it to the GunSafe project (this sets `POSTGRES_URL` automatically)
-4. **Redeploy** the project
+1. Open [GunSafe on Vercel](https://vercel.com/ssdillon95s-projects/gunsafe)
+2. Go to **Storage** → search **Neon** → **Add Integration**
+3. Accept terms, create a database, and **connect it to the GunSafe project**
+4. Click **Redeploy** (Deployments → ⋯ → Redeploy)
 
-After redeploying, enroll officers and lockers will work on https://gunsafe.vercel.app.
+Vercel will inject `POSTGRES_URL` automatically. After redeploying, enroll and locker setup will work.

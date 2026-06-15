@@ -1,13 +1,20 @@
 import type { ActiveSession, CheckEvent, Locker, Officer } from "./types";
 
-const usePostgres = Boolean(
-  process.env.POSTGRES_URL || process.env.DATABASE_URL
-);
+function getPostgresUrl(): string | undefined {
+  return (
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_PRISMA_URL
+  );
+}
+
+const usePostgres = Boolean(getPostgresUrl());
 
 function assertDatabaseConfigured() {
   if (process.env.VERCEL === "1" && !usePostgres) {
     throw new Error(
-      "Database not configured. Add Vercel Postgres to this project in the Vercel dashboard (Storage → Create Database → Postgres), then redeploy."
+      "Database not configured. In Vercel, open your GunSafe project → Storage → Marketplace → add Neon Postgres, connect it to this project, then redeploy."
     );
   }
 }
@@ -26,7 +33,7 @@ async function initSchema(): Promise<void> {
 
   if (usePostgres) {
     const { neon } = await import("@neondatabase/serverless");
-    const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL!);
+    const sql = neon(getPostgresUrl()!);
     await sql`
       CREATE TABLE IF NOT EXISTS officers (
         id SERIAL PRIMARY KEY,
@@ -127,7 +134,7 @@ async function getSqliteDb() {
 
 async function getPostgresSql() {
   const { neon } = await import("@neondatabase/serverless");
-  return neon(process.env.POSTGRES_URL || process.env.DATABASE_URL!);
+  return neon(getPostgresUrl()!);
 }
 
 function formatTimestamp(value: unknown): string {
