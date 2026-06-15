@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  SESSION_COOKIE,
-  createSessionToken,
-  validateCredentials,
-} from "@/lib/auth";
+import { SESSION_COOKIE, createSessionToken } from "@/lib/auth";
+import { authenticateAppUser } from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
@@ -11,15 +8,23 @@ export async function POST(request: Request) {
     const username = String(body.username ?? "").trim();
     const password = String(body.password ?? "");
 
-    if (!validateCredentials(username, password)) {
+    const user = await authenticateAppUser(username, password);
+    if (!user) {
       return NextResponse.json(
         { success: false, error: "Invalid username or password." },
         { status: 401 }
       );
     }
 
-    const token = await createSessionToken(username);
-    const response = NextResponse.json({ success: true, username });
+    const token = await createSessionToken({
+      username: user.username,
+      role: user.role,
+    });
+    const response = NextResponse.json({
+      success: true,
+      username: user.username,
+      role: user.role,
+    });
 
     response.cookies.set(SESSION_COOKIE, token, {
       httpOnly: true,

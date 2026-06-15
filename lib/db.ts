@@ -1,4 +1,7 @@
-import type { ActiveSession, CheckEvent, Locker, Officer } from "./types";
+import type { ActiveSession, AppUser, CheckEvent, Locker, Officer } from "./types";
+import { hashPassword, verifyPassword } from "./password";
+
+const MASTER_USERNAME = "Kemper";
 
 function getPostgresUrl(): string | undefined {
   return (
@@ -66,6 +69,16 @@ async function initSchema(): Promise<void> {
     await sql`CREATE INDEX IF NOT EXISTS idx_check_events_recorded ON check_events(recorded_at)`;
     await sql`ALTER TABLE officers ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false`;
     await sql`ALTER TABLE lockers ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS app_users (
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('master', 'user')) DEFAULT 'user',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+    await seedMasterUserPostgres(sql);
     return;
   }
 
@@ -126,7 +139,56 @@ async function initSchema(): Promise<void> {
       "ALTER TABLE lockers ADD COLUMN archived INTEGER NOT NULL DEFAULT 0"
     );
   }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('master', 'user')) DEFAULT 'user',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  seedMasterUserSqlite(db);
   db.close();
+}
+
+function getMasterPassword(): string {
+  return process.env.GUNSAFE_PASSWORD || "K3mp3r";
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function seedMasterUserPostgres(sql: any) {
+  const existing = await sql`
+    SELECT id FROM app_users WHERE username = ${MASTER_USERNAME}
+  `;
+  if (existing.length > 0) return;
+
+  const passwordHash = hashPassword(getMasterPassword());
+  await sql`
+    INSERT INTO app_users (username, password_hash, role)
+    VALUES (${MASTER_USERNAME}, ${passwordHash}, 'master')
+  `;
+}
+
+function seedMasterUserSqlite(db: import("better-sqlite3").Database) {
+  const existing = db
+    .prepare("SELECT id FROM app_users WHERE username = ?")
+    .get(MASTER_USERNAME);
+  if (existing) return;
+
+  const passwordHash = hashPassword(getMasterPassword());
+  db.prepare(
+    `INSERT INTO app_users (username, password_hash, role) VALUES (?, ?, 'master')`
+  ).run(MASTER_USERNAME, passwordHash);
+}
+
+function mapAppUser(row: Record<string, unknown>): AppUser {
+  return {
+    id: Number(row.id),
+    username: String(row.username),
+    role: row.role === "master" ? "master" : "user",
+    created_at: String(row.created_at),
+  };
 }
 
 async function getSqliteDb() {
@@ -745,6 +807,191 @@ export async function setLockerArchived(
       )
       .get(id);
     return mapLocker(row as Record<string, unknown>);
+  } finally {
+    db.close();
+  }
+}
+
+export async function getAppUserByUsername(
+  username: string
+): Promise<AppUser | null> {
+  await ensureSchema();
+
+  if (usePostgres) {
+    const sql = await getPostgresSql();
+    const rows = await sql`
+      SELECT id, username, role, created_at
+      FROM app_users WHERE username = ${username}
+    `;
+    if (rows.length === 0) return null;
+    return mapAppUser(rows[0] as Record<string, unknown>);
+  }
+
+  const db = await getSqliteDb();
+  try {
+    const row = db
+      .prepare(
+        `SELECT id, username, role, created_at FROM app_users WHERE username = ?`
+      )
+      .get(username) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return mapAppUser(row);
+  } finally {
+    db.close();
+  }
+}
+
+export async function authenticateAppUser(
+  username: string,
+  password: string
+): Promise<AppUser | null> {
+  await ensureSchema();
+  const trimmed = username.trim();
+  if (!trimmed || !password) return null;
+
+  if (usePostgres) {
+    const sql = await getPostgresSql();
+    const rows = await sql`
+      SELECT id, username, password_hash, role, created_at
+      FROM app_users WHERE username = ${trimmed}
+    `;
+    if (rows.length === 0) return null;
+    const row = rows[0] as Record<string, unknown>;
+    if (!verifyPassword(password, String(row.password_hash))) return null;
+    return mapAppUser(row);
+  }
+
+  const db = await getSqliteDb();
+  try {
+    const row = db
+      .prepare(
+        `SELECT id, username, password_hash, role, created_at
+         FROM app_users WHERE username = ?`
+      )
+      .get(trimmed) as Record<string, unknown> | undefined;
+    if (!row || !verifyPassword(password, String(row.password_hash))) return null;
+    return mapAppUser(row);
+  } finally {
+    db.close();
+  }
+}
+
+export async function listAppUsers(): Promise<AppUser[]> {
+  await ensureSchema();
+
+  if (usePostgres) {
+    const sql = await getPostgresSql();
+    const rows = await sql`
+      SELECT id, username, role, created_at
+      FROM app_users
+      ORDER BY role DESC, username
+    `;
+    return rows.map((row) => mapAppUser(row as Record<string, unknown>));
+  }
+
+  const db = await getSqliteDb();
+  try {
+    const rows = db
+      .prepare(
+        `SELECT id, username, role, created_at
+         FROM app_users
+         ORDER BY role DESC, username`
+      )
+      .all();
+    return rows.map((row) => mapAppUser(row as Record<string, unknown>));
+  } finally {
+    db.close();
+  }
+}
+
+export async function createAppUser(data: {
+  username: string;
+  password: string;
+}): Promise<AppUser> {
+  await ensureSchema();
+
+  const username = data.username.trim();
+  const password = data.password;
+
+  if (!username || !password) {
+    throw new Error("Username and password are required.");
+  }
+  if (password.length < 4) {
+    throw new Error("Password must be at least 4 characters.");
+  }
+  if (username.toLowerCase() === MASTER_USERNAME.toLowerCase()) {
+    throw new Error("Cannot create another master account.");
+  }
+
+  const passwordHash = hashPassword(password);
+
+  if (usePostgres) {
+    const sql = await getPostgresSql();
+    const existing = await sql`
+      SELECT id FROM app_users WHERE username = ${username}
+    `;
+    if (existing.length > 0) {
+      throw new Error(`User ${username} already exists.`);
+    }
+
+    const inserted = await sql`
+      INSERT INTO app_users (username, password_hash, role)
+      VALUES (${username}, ${passwordHash}, 'user')
+      RETURNING id, username, role, created_at
+    `;
+    return mapAppUser(inserted[0] as Record<string, unknown>);
+  }
+
+  const db = await getSqliteDb();
+  try {
+    const existing = db
+      .prepare("SELECT id FROM app_users WHERE username = ?")
+      .get(username);
+    if (existing) throw new Error(`User ${username} already exists.`);
+
+    const result = db
+      .prepare(
+        `INSERT INTO app_users (username, password_hash, role)
+         VALUES (?, ?, 'user')`
+      )
+      .run(username, passwordHash);
+
+    const row = db
+      .prepare(`SELECT id, username, role, created_at FROM app_users WHERE id = ?`)
+      .get(result.lastInsertRowid);
+    return mapAppUser(row as Record<string, unknown>);
+  } finally {
+    db.close();
+  }
+}
+
+export async function deleteAppUser(id: number): Promise<void> {
+  await ensureSchema();
+
+  if (usePostgres) {
+    const sql = await getPostgresSql();
+    const user = await sql`
+      SELECT id, username, role FROM app_users WHERE id = ${id}
+    `;
+    if (user.length === 0) throw new Error("User not found.");
+    if (user[0].role === "master") {
+      throw new Error("The master account cannot be removed.");
+    }
+    await sql`DELETE FROM app_users WHERE id = ${id}`;
+    return;
+  }
+
+  const db = await getSqliteDb();
+  try {
+    const user = db
+      .prepare("SELECT id, username, role FROM app_users WHERE id = ?")
+      .get(id) as { role: string } | undefined;
+    if (!user) throw new Error("User not found.");
+    if (user.role === "master") {
+      throw new Error("The master account cannot be removed.");
+    }
+    const result = db.prepare("DELETE FROM app_users WHERE id = ?").run(id);
+    if (result.changes === 0) throw new Error("User not found.");
   } finally {
     db.close();
   }

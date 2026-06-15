@@ -27,6 +27,13 @@ export interface CheckEvent {
   locker_number: string;
 }
 
+export interface AppUser {
+  id: number;
+  username: string;
+  role: "master" | "user";
+  created_at: string;
+}
+
 export interface ActiveSession {
   officer_id: number;
   locker_id: number;

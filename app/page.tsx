@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { downloadActivityPdf } from "@/lib/generateActivityPdf";
-import type { ActiveSession, CheckEvent, Locker, Officer } from "@/lib/types";
+import type { ActiveSession, AppUser, CheckEvent, Locker, Officer } from "@/lib/types";
 
-type Tab = "check" | "enroll" | "lockers" | "log";
+type Tab = "check" | "enroll" | "lockers" | "log" | "users";
+type UserRole = "master" | "user";
 
 function formatTime(iso: string) {
   const normalized = iso.includes("T") ? iso : iso.replace(" ", "T");
@@ -26,6 +27,13 @@ export default function GunSafeApp() {
   const [events, setEvents] = useState<CheckEvent[]>([]);
   const [active, setActive] = useState<ActiveSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<{
+    username: string;
+    role: UserRole;
+  } | null>(null);
+  const [appUsers, setAppUsers] = useState<AppUser[]>([]);
+  const [userForm, setUserForm] = useState({ username: "", password: "" });
+  const [removingUserId, setRemovingUserId] = useState<number | null>(null);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -56,21 +64,30 @@ export default function GunSafeApp() {
 
   const loadData = useCallback(async () => {
     try {
-      const [officersRes, lockersRes, eventsRes] = await Promise.all([
+      const [meRes, officersRes, lockersRes, eventsRes] = await Promise.all([
+        fetch("/api/auth/me"),
         fetch("/api/officers"),
         fetch("/api/lockers"),
         fetch("/api/events"),
       ]);
 
+      const meJson = await meRes.json();
       const officersJson = await officersRes.json();
       const lockersJson = await lockersRes.json();
       const eventsJson = await eventsRes.json();
 
+      if (meJson.success) setCurrentUser(meJson.data);
       if (officersJson.success) setOfficers(officersJson.data);
       if (lockersJson.success) setLockers(lockersJson.data);
       if (eventsJson.success) {
         setEvents(eventsJson.data.events);
         setActive(eventsJson.data.active);
+      }
+
+      if (meJson.success && meJson.data.role === "master") {
+        const usersRes = await fetch("/api/users");
+        const usersJson = await usersRes.json();
+        if (usersJson.success) setAppUsers(usersJson.data);
       }
     } catch {
       showMessage("error", "Failed to load data.");
@@ -178,8 +195,48 @@ export default function GunSafeApp() {
     router.refresh();
   };
 
-  const handleDownloadPdf = () => {
-    downloadActivityPdf(events);
+  const handleDownloadPdf = async () => {
+    if (currentUser?.role !== "master") {
+      showMessage("error", "Only the master user can download reports.");
+      return;
+    }
+    await downloadActivityPdf(events);
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userForm),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      showMessage("success", `User ${json.data.username} added.`);
+      setUserForm({ username: "", password: "" });
+      await loadData();
+    } catch (err) {
+      showMessage("error", (err as Error).message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRemoveUser = async (id: number) => {
+    setRemovingUserId(id);
+    try {
+      const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      showMessage("success", "User removed.");
+      await loadData();
+    } catch (err) {
+      showMessage("error", (err as Error).message);
+    } finally {
+      setRemovingUserId(null);
+    }
   };
 
   const handleLockerArchive = async (id: number, archived: boolean) => {
@@ -252,11 +309,14 @@ export default function GunSafeApp() {
   const activeLockers = lockers.filter((l) => !l.archived);
   const archivedLockers = lockers.filter((l) => l.archived);
 
+  const isMaster = currentUser?.role === "master";
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "check", label: "Log In" },
     { id: "enroll", label: "Enroll Officer" },
     { id: "lockers", label: "Locker Setup" },
     { id: "log", label: "Activity Log" },
+    ...(isMaster ? [{ id: "users" as Tab, label: "Users" }] : []),
   ];
 
   return (
@@ -281,6 +341,12 @@ export default function GunSafeApp() {
             <div className="hidden sm:block text-[10px] sm:text-xs px-2 sm:px-3 py-1 bg-[var(--card)] rounded-full border border-[var(--border)] text-slate-400">
               Records cannot be deleted
             </div>
+            {currentUser && (
+              <div className="hidden sm:block text-xs text-slate-500">
+                {currentUser.username}
+                {isMaster ? " (Master)" : ""}
+              </div>
+            )}
             <button
               type="button"
               onClick={handleLogout}
@@ -730,6 +796,90 @@ export default function GunSafeApp() {
               )}
             </section>
           </div>
+        ) : tab === "users" ? (
+          <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8 max-w-xl">
+            <h2 className="text-2xl font-semibold mb-1">User Management</h2>
+            <p className="text-slate-400 text-sm mb-8">
+              Master access only. Add or remove app users. The master account
+              cannot be removed.
+            </p>
+
+            <form onSubmit={handleAddUser} className="space-y-5 mb-10">
+              <div>
+                <label className="block text-xs text-slate-400 uppercase tracking-widest mb-2">
+                  Username
+                </label>
+                <input
+                  required
+                  value={userForm.username}
+                  onChange={(e) =>
+                    setUserForm({ ...userForm, username: e.target.value })
+                  }
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3"
+                  placeholder="New username"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 uppercase tracking-widest mb-2">
+                  Password
+                </label>
+                <input
+                  required
+                  type="password"
+                  value={userForm.password}
+                  onChange={(e) =>
+                    setUserForm({ ...userForm, password: e.target.value })
+                  }
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-3"
+                  placeholder="At least 4 characters"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={actionLoading}
+                className="w-full py-4 rounded-2xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white font-semibold transition"
+              >
+                Add User
+              </button>
+            </form>
+
+            <div>
+              <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest mb-4">
+                App Users ({appUsers.length})
+              </h3>
+              <ul className="space-y-2 text-sm">
+                {appUsers.map((u) => (
+                  <li
+                    key={u.id}
+                    className="flex items-center justify-between gap-3 py-3 border-b border-[var(--border)] last:border-0"
+                  >
+                    <div>
+                      <span className="font-medium">{u.username}</span>
+                      <span
+                        className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                          u.role === "master"
+                            ? "bg-amber-500/20 text-amber-400"
+                            : "bg-slate-500/20 text-slate-400"
+                        }`}
+                      >
+                        {u.role === "master" ? "Master" : "User"}
+                      </span>
+                    </div>
+                    {u.role !== "master" && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveUser(u.id)}
+                        disabled={removingUserId === u.id}
+                        className="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-medium transition"
+                      >
+                        {removingUserId === u.id ? "Removing..." : "Remove"}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
         ) : (
           <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -740,14 +890,16 @@ export default function GunSafeApp() {
                   and cannot be deleted.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleDownloadPdf}
-                disabled={events.length === 0}
-                className="px-5 py-3 rounded-2xl bg-blue-500 hover:bg-blue-400 disabled:opacity-40 text-white text-sm font-semibold transition whitespace-nowrap"
-              >
-                Download PDF Report
-              </button>
+              {isMaster && (
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={events.length === 0}
+                  className="px-5 py-3 rounded-2xl bg-blue-500 hover:bg-blue-400 disabled:opacity-40 text-white text-sm font-semibold transition whitespace-nowrap"
+                >
+                  Download PDF Report
+                </button>
+              )}
             </div>
 
             {events.length === 0 ? (
