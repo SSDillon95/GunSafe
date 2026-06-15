@@ -31,7 +31,11 @@ function LoginForm() {
       }
 
       const from = searchParams.get("from") || "/";
-      router.push(from);
+      const destination =
+        !from || from === "/site-access" || from.startsWith("/site-access/")
+          ? "/"
+          : from;
+      router.push(destination);
       router.refresh();
     } catch {
       setError("Unable to connect. Please try again.");
