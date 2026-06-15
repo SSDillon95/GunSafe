@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { downloadActivityPdf } from "@/lib/generateActivityPdf";
 import type { ActiveSession, CheckEvent, Locker, Officer } from "@/lib/types";
 
 type Tab = "check" | "enroll" | "lockers" | "log";
@@ -17,6 +19,7 @@ function formatTime(iso: string) {
 }
 
 export default function GunSafeApp() {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("check");
   const [officers, setOfficers] = useState<Officer[]>([]);
   const [lockers, setLockers] = useState<Locker[]>([]);
@@ -169,6 +172,16 @@ export default function GunSafeApp() {
     }
   };
 
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  };
+
+  const handleDownloadPdf = () => {
+    downloadActivityPdf(events);
+  };
+
   const handleLockerArchive = async (id: number, archived: boolean) => {
     setArchivingKey(`locker-${id}`);
     try {
@@ -264,8 +277,17 @@ export default function GunSafeApp() {
               </div>
             </div>
           </div>
-          <div className="text-[10px] sm:text-xs px-2 sm:px-3 py-1 bg-[var(--card)] rounded-full border border-[var(--border)] text-slate-400">
-            Records cannot be deleted
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:block text-[10px] sm:text-xs px-2 sm:px-3 py-1 bg-[var(--card)] rounded-full border border-[var(--border)] text-slate-400">
+              Records cannot be deleted
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="text-xs px-3 py-1.5 rounded-full border border-[var(--border)] text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
@@ -710,11 +732,23 @@ export default function GunSafeApp() {
           </div>
         ) : (
           <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8">
-            <h2 className="text-2xl font-semibold mb-1">Activity Log</h2>
-            <p className="text-slate-400 text-sm mb-6">
-              Permanent audit trail. All log in and log out records are kept forever and
-              cannot be deleted.
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-semibold mb-1">Activity Log</h2>
+                <p className="text-slate-400 text-sm">
+                  Permanent audit trail. All log in and log out records are kept forever
+                  and cannot be deleted.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={events.length === 0}
+                className="px-5 py-3 rounded-2xl bg-blue-500 hover:bg-blue-400 disabled:opacity-40 text-white text-sm font-semibold transition whitespace-nowrap"
+              >
+                Download PDF Report
+              </button>
+            </div>
 
             {events.length === 0 ? (
               <p className="text-slate-400 text-sm py-8 text-center">No activity recorded yet.</p>
