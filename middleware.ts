@@ -9,6 +9,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname === "/site-access") {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
   const session = await verifySessionToken(
     request.cookies.get(SESSION_COOKIE)?.value
   );
