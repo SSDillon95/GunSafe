@@ -63,32 +63,14 @@ export default function Footer() {
 
         <div className="mt-8 pt-6 border-t border-[var(--border)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-slate-500">
           <p>© {year} Prime Logic, Inc. All rights reserved.</p>
-          <div className="flex gap-4">
-            <a
-              href="https://primelogic.pro/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-slate-300 transition"
-            >
-              Privacy Policy
-            </a>
-            <a
-              href="https://primelogic.pro/terms"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-slate-300 transition"
-            >
-              Terms of Service
-            </a>
-            <a
-              href="https://primelogic.pro"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-slate-300 transition"
-            >
-              primelogic.pro
-            </a>
-          </div>
+          <a
+            href="https://primelogic.pro"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-300 transition"
+          >
+            primelogic.pro
+          </a>
         </div>
       </div>
     </footer>

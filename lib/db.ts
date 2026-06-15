@@ -965,6 +965,45 @@ export async function createAppUser(data: {
   }
 }
 
+export async function resetForNewCustomer(): Promise<{
+  events_deleted: boolean;
+  officers_deleted: boolean;
+  lockers_deleted: boolean;
+  users_deleted: boolean;
+}> {
+  await ensureSchema();
+
+  if (usePostgres) {
+    const sql = await getPostgresSql();
+    await sql`DELETE FROM check_events`;
+    await sql`DELETE FROM officers`;
+    await sql`DELETE FROM lockers`;
+    await sql`DELETE FROM app_users WHERE role != 'master'`;
+    return {
+      events_deleted: true,
+      officers_deleted: true,
+      lockers_deleted: true,
+      users_deleted: true,
+    };
+  }
+
+  const db = await getSqliteDb();
+  try {
+    db.exec("DELETE FROM check_events");
+    db.exec("DELETE FROM officers");
+    db.exec("DELETE FROM lockers");
+    db.exec("DELETE FROM app_users WHERE role != 'master'");
+    return {
+      events_deleted: true,
+      officers_deleted: true,
+      lockers_deleted: true,
+      users_deleted: true,
+    };
+  } finally {
+    db.close();
+  }
+}
+
 export async function deleteAppUser(id: number): Promise<void> {
   await ensureSchema();
 
