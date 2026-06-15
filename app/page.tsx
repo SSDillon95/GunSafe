@@ -80,8 +80,12 @@ export default function GunSafeApp() {
       if (officersJson.success) setOfficers(officersJson.data);
       if (lockersJson.success) setLockers(lockersJson.data);
       if (eventsJson.success) {
-        setEvents(eventsJson.data.events);
         setActive(eventsJson.data.active);
+        if (meJson.success && meJson.data.role === "master") {
+          setEvents(eventsJson.data.events);
+        } else {
+          setEvents([]);
+        }
       }
 
       if (meJson.success && meJson.data.role === "master") {
@@ -99,6 +103,16 @@ export default function GunSafeApp() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (
+      currentUser &&
+      currentUser.role !== "master" &&
+      (tab === "log" || tab === "users")
+    ) {
+      setTab("check");
+    }
+  }, [currentUser, tab]);
 
   const selectedPairStatus = () => {
     if (!selectedOfficerId || !selectedLockerId) return null;
@@ -315,8 +329,12 @@ export default function GunSafeApp() {
     { id: "check", label: "Log In" },
     { id: "enroll", label: "Enroll Officer" },
     { id: "lockers", label: "Locker Setup" },
-    { id: "log", label: "Activity Log" },
-    ...(isMaster ? [{ id: "users" as Tab, label: "Users" }] : []),
+    ...(isMaster
+      ? [
+          { id: "log" as Tab, label: "Activity Log" },
+          { id: "users" as Tab, label: "Users" },
+        ]
+      : []),
   ];
 
   return (
