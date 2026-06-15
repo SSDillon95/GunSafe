@@ -3,7 +3,7 @@ import { enrollOfficer, listOfficers } from "@/lib/db";
 
 export async function GET() {
   try {
-    const officers = listOfficers();
+    const officers = await listOfficers();
     return NextResponse.json({ success: true, data: officers });
   } catch (error) {
     return NextResponse.json(
@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const officer = enrollOfficer({
+    const officer = await enrollOfficer({
       badge_number: body.badge_number ?? "",
       first_name: body.first_name ?? "",
       last_name: body.last_name ?? "",

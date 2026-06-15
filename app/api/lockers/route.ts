@@ -3,7 +3,7 @@ import { addLocker, listLockers } from "@/lib/db";
 
 export async function GET() {
   try {
-    const lockers = listLockers();
+    const lockers = await listLockers();
     return NextResponse.json({ success: true, data: lockers });
   } catch (error) {
     return NextResponse.json(
@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const locker = addLocker({
+    const locker = await addLocker({
       locker_number: body.locker_number ?? "",
       location: body.location,
     });

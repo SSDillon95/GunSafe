@@ -6,7 +6,8 @@ import type { ActiveSession, CheckEvent, Locker, Officer } from "@/lib/types";
 type Tab = "check" | "enroll" | "lockers" | "log";
 
 function formatTime(iso: string) {
-  return new Date(iso.replace(" ", "T")).toLocaleString(undefined, {
+  const normalized = iso.includes("T") ? iso : iso.replace(" ", "T");
+  return new Date(normalized).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",

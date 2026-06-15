@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const event = recordCheckIn(officerId, lockerId);
+    const event = await recordCheckIn(officerId, lockerId);
     return NextResponse.json({ success: true, data: event }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

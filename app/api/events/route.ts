@@ -3,8 +3,8 @@ import { listActiveSessions, listCheckEvents } from "@/lib/db";
 
 export async function GET() {
   try {
-    const events = listCheckEvents();
-    const active = listActiveSessions();
+    const events = await listCheckEvents();
+    const active = await listActiveSessions();
     return NextResponse.json({
       success: true,
       data: { events, active },
