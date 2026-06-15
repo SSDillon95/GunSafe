@@ -4,7 +4,8 @@
   --background: #0c0f14;
   --foreground: #e8edf4;
   --accent: #3b82f6;
-  --accent-muted: #1e3a5f;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
   --card: #141a24;
   --border: rgba(255, 255, 255, 0.08);
 }
@@ -13,4 +14,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans);
+}
+
+select,
+input,
+textarea {
+  font-size: 16px;
 }
