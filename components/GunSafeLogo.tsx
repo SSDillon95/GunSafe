@@ -8,7 +8,7 @@ export default function GunSafeLogo({ size = 36, className }: GunSafeLogoProps) 
     <svg
       width={size}
       height={size}
-      viewBox="0 0 36 36"
+      viewBox="-4 -4 44 44"
       aria-label="GunSafe logo"
       className={className}
     >

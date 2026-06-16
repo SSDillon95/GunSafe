@@ -1,4 +1,4 @@
-export const GUNSAFE_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 36 36">
+export const GUNSAFE_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="-4 -4 44 44">
   <g transform="translate(18 22) scale(2) translate(-18 -18)">
     <path d="M18 7 24.5 9.4V16c0 4.6-6.5 9-6.5 9s-6.5-4.4-6.5-9V9.4L18 7z" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5" stroke-linejoin="round"/>
     <circle cx="18" cy="15.5" r="5" fill="#2563eb" stroke="#60a5fa" stroke-width="1.2"/>
