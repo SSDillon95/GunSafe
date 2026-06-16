@@ -5,7 +5,11 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith("/_next") || pathname === "/favicon.ico") {
+  if (
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico" ||
+    /\.(?:png|jpg|jpeg|gif|svg|webp|ico)$/i.test(pathname)
+  ) {
     return NextResponse.next();
   }
 
@@ -40,5 +44,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)",
+  ],
 };
