@@ -341,7 +341,7 @@ export default function GunSafeApp() {
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--background)] flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {currentUser && <SessionTimeout />}
       <header className="border-b border-[var(--border)] bg-[var(--background)]/95 backdrop-blur sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">

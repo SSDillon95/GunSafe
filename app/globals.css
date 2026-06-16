@@ -10,26 +10,33 @@
   --border: rgba(255, 255, 255, 0.08);
 }
 
-body {
+html {
+  min-height: 100%;
   background: var(--background);
+}
+
+body {
   color: var(--foreground);
   font-family: var(--font-geist-sans);
-  position: relative;
-  isolation: isolate;
   min-height: 100%;
 }
 
-body::before {
-  content: "";
+.site-background {
   position: fixed;
   inset: 0;
+  z-index: 0;
   background-image: url("/detention-center-exterior.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   opacity: 0.1;
   pointer-events: none;
-  z-index: -1;
+}
+
+.site-content {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
 }
 
 select,
