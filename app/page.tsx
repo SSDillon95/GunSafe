@@ -416,7 +416,7 @@ export default function GunSafeApp() {
 
       <main
         className={`mx-auto px-4 sm:px-6 py-6 pb-12 ${
-          tab === "check" ? "max-w-7xl" : "max-w-5xl"
+          tab === "check" ? "max-w-[120rem]" : "max-w-5xl"
         }`}
       >
         {loading ? (
@@ -426,7 +426,7 @@ export default function GunSafeApp() {
             <section className="locker-log-panel rounded-3xl border border-[var(--border)] bg-[var(--card)]/90 backdrop-blur-sm p-8 sm:p-10 lg:p-12">
               <div className="locker-log-content">
               <h2 className="text-2xl sm:text-3xl font-semibold mb-1">Locker Log In</h2>
-              <p className="text-slate-400 text-sm sm:text-base mb-8 max-w-3xl">
+              <p className="text-slate-400 text-sm sm:text-base mb-8">
                 Select an officer and locker, then record log in. Use the list
                 below to log out.
               </p>
@@ -499,7 +499,7 @@ export default function GunSafeApp() {
                 type="button"
                 onClick={handleLogIn}
                 disabled={actionLoading || status === "checked_in"}
-                className="w-full max-w-2xl py-5 rounded-2xl bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-lg transition"
+                className="w-full py-5 rounded-2xl bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-lg transition"
               >
                 Log In
               </button>
