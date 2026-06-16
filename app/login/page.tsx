@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Footer from "@/components/Footer";
+import GunSafeLogo from "@/components/GunSafeLogo";
 
 function LoginForm() {
   const router = useRouter();
@@ -112,11 +113,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
-            <svg width="40" height="40" viewBox="0 0 36 36" aria-label="GunSafe logo">
-              <rect width="36" height="36" rx="8" fill="#141a24" stroke="#3b82f6" strokeWidth="1.5" />
-              <rect x="8" y="10" width="20" height="16" rx="2" fill="none" stroke="#3b82f6" strokeWidth="2" />
-              <circle cx="24" cy="18" r="2.5" fill="#60a5fa" />
-            </svg>
+            <GunSafeLogo size={40} />
             <span className="text-3xl font-semibold tracking-tighter">GunSafe</span>
           </div>
           <p className="text-slate-400 text-sm">Detention Center Locker Log</p>

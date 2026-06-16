@@ -1,13 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { GUNSAFE_LOGO_SVG } from "./gunsafe-logo";
 import type { CheckEvent } from "./types";
-
-const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 36 36">
-  <rect width="36" height="36" rx="8" fill="#141a24" stroke="#3b82f6" stroke-width="1.5"/>
-  <rect x="8" y="10" width="20" height="16" rx="2" fill="none" stroke="#3b82f6" stroke-width="2"/>
-  <circle cx="24" cy="18" r="2.5" fill="#60a5fa"/>
-  <path d="M8 26h20" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/>
-</svg>`;
 
 function formatReportTime(iso: string): string {
   const normalized = iso.includes("T") ? iso : iso.replace(" ", "T");
@@ -21,7 +15,7 @@ function formatReportTime(iso: string): string {
 }
 
 async function loadLogoDataUrl(): Promise<string> {
-  const svgBlob = new Blob([LOGO_SVG], { type: "image/svg+xml;charset=utf-8" });
+  const svgBlob = new Blob([GUNSAFE_LOGO_SVG], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(svgBlob);
 
   try {

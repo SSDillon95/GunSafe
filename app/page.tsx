@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
+import GunSafeLogo from "@/components/GunSafeLogo";
 import SessionTimeout from "@/components/SessionTimeout";
 import { downloadActivityPdf } from "@/lib/generateActivityPdf";
 import type { ActiveSession, AppUser, CheckEvent, Locker, Officer } from "@/lib/types";
@@ -345,12 +346,7 @@ export default function GunSafeApp() {
       <header className="border-b border-[var(--border)] bg-[var(--background)]/95 backdrop-blur sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <svg width="36" height="36" viewBox="0 0 36 36" aria-label="GunSafe logo">
-              <rect width="36" height="36" rx="8" fill="#141a24" stroke="#3b82f6" strokeWidth="1.5" />
-              <rect x="8" y="10" width="20" height="16" rx="2" fill="none" stroke="#3b82f6" strokeWidth="2" />
-              <circle cx="24" cy="18" r="2.5" fill="#60a5fa" />
-              <path d="M8 26h20" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <GunSafeLogo size={36} />
             <div>
               <div className="font-semibold text-xl sm:text-2xl tracking-tighter">GunSafe</div>
               <div className="text-[10px] text-blue-400 -mt-0.5 tracking-widest uppercase">
