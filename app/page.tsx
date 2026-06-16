@@ -414,19 +414,24 @@ export default function GunSafeApp() {
         </div>
       </nav>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-12">
+      <main
+        className={`mx-auto px-4 sm:px-6 py-6 pb-12 ${
+          tab === "check" ? "max-w-7xl" : "max-w-5xl"
+        }`}
+      >
         {loading ? (
           <div className="text-center text-slate-400 py-20">Loading...</div>
         ) : tab === "check" ? (
-          <div className="space-y-6">
-            <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 sm:p-8">
-              <h2 className="text-2xl font-semibold mb-1">Locker Log In</h2>
-              <p className="text-slate-400 text-sm mb-8">
+          <div className="space-y-6 w-full">
+            <section className="locker-log-panel rounded-3xl border border-[var(--border)] bg-[var(--card)]/90 backdrop-blur-sm p-8 sm:p-10 lg:p-12">
+              <div className="locker-log-content">
+              <h2 className="text-2xl sm:text-3xl font-semibold mb-1">Locker Log In</h2>
+              <p className="text-slate-400 text-sm sm:text-base mb-8 max-w-3xl">
                 Select an officer and locker, then record log in. Use the list
                 below to log out.
               </p>
 
-              <div className="grid sm:grid-cols-2 gap-6 mb-8">
+              <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 mb-8">
                 <div>
                   <label className="block text-xs text-slate-400 uppercase tracking-widest mb-2">
                     Officer
@@ -434,7 +439,7 @@ export default function GunSafeApp() {
                   <select
                     value={selectedOfficerId}
                     onChange={(e) => setSelectedOfficerId(e.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-4 text-white"
+                    className="w-full bg-[var(--background)]/90 border border-[var(--border)] rounded-2xl px-5 py-5 text-base text-white"
                   >
                     <option value="">Select officer...</option>
                     {activeOfficers.map((o) => (
@@ -457,7 +462,7 @@ export default function GunSafeApp() {
                   <select
                     value={selectedLockerId}
                     onChange={(e) => setSelectedLockerId(e.target.value)}
-                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-2xl px-4 py-4 text-white"
+                    className="w-full bg-[var(--background)]/90 border border-[var(--border)] rounded-2xl px-5 py-5 text-base text-white"
                   >
                     <option value="">Select locker...</option>
                     {activeLockers.map((l) => (
@@ -494,14 +499,15 @@ export default function GunSafeApp() {
                 type="button"
                 onClick={handleLogIn}
                 disabled={actionLoading || status === "checked_in"}
-                className="w-full py-5 rounded-2xl bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-lg transition"
+                className="w-full max-w-2xl py-5 rounded-2xl bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold text-lg transition"
               >
                 Log In
               </button>
+              </div>
             </section>
 
             {active.length > 0 && (
-              <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6">
+              <section className="rounded-3xl border border-[var(--border)] bg-[var(--card)]/90 backdrop-blur-sm p-6 sm:p-8">
                 <h3 className="text-lg font-semibold mb-4">
                   Currently Logged In ({active.length})
                 </h3>

@@ -21,3 +21,24 @@ input,
 textarea {
   font-size: 16px;
 }
+
+.locker-log-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.locker-log-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/locker-background.png");
+  background-size: cover;
+  background-position: center;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.locker-log-panel > .locker-log-content {
+  position: relative;
+  z-index: 1;
+}
