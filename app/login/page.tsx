@@ -11,6 +11,7 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const timedOut = searchParams.get("timeout") === "1";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +51,13 @@ function LoginForm() {
       className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-8 space-y-5"
     >
       <h1 className="text-xl font-semibold text-center">Sign In</h1>
+
+      {timedOut && (
+        <div className="rounded-xl px-4 py-3 text-sm border bg-amber-500/10 border-amber-500/30 text-amber-300">
+          Your session expired after 30 minutes of inactivity. Please sign in
+          again.
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl px-4 py-3 text-sm border bg-red-500/10 border-red-500/30 text-red-400">

@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { SESSION_TIMEOUT_SECONDS } from "./session-config";
 
 const SESSION_COOKIE = "gunsafe_session";
 
@@ -19,7 +20,7 @@ export async function createSessionToken(user: SessionUser): Promise<string> {
   return new SignJWT({ username: user.username, role: user.role })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime(`${SESSION_TIMEOUT_SECONDS}s`)
     .sign(getSecretKey());
 }
 

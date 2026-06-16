@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE, createSessionToken } from "@/lib/auth";
 import { authenticateAppUser } from "@/lib/db";
+import { SESSION_TIMEOUT_SECONDS } from "@/lib/session-config";
 
 export async function POST(request: Request) {
   try {
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: SESSION_TIMEOUT_SECONDS,
       path: "/",
     });
 
